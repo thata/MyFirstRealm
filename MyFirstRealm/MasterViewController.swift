@@ -8,6 +8,7 @@
 
 import UIKit
 import RealmSwift
+import ObjectMapper
 
 class MasterViewController: UITableViewController {
 
@@ -20,7 +21,7 @@ class MasterViewController: UITableViewController {
         // Do any additional setup after loading the view, typically from a nib.
         self.navigationItem.leftBarButtonItem = self.editButtonItem()
 
-        let addButton = UIBarButtonItem(barButtonSystemItem: .Add, target: self, action: "insertNewObject:")
+        let addButton = UIBarButtonItem(barButtonSystemItem: .Add, target: self, action: #selector(MasterViewController.insertNewObject(_:)))
         self.navigationItem.rightBarButtonItem = addButton
         if let split = self.splitViewController {
             let controllers = split.viewControllers
@@ -110,27 +111,22 @@ class MasterViewController: UITableViewController {
         let session = NSURLSession.sharedSession()
         let task = session.dataTaskWithRequest(request) { (data, response, error) -> Void in
             
-            let users: NSArray = try! NSJSONSerialization.JSONObjectWithData(data!, options: NSJSONReadingOptions.MutableLeaves) as! NSArray
-            
-            for user in users {
-                let user = user as! NSDictionary
-                let id: Int = user["id"] as! Int
-                let name: String = user["name"] as! String
-                let age: Int = user["age"] as! Int
+            NSOperationQueue.mainQueue().addOperationWithBlock({
+                let realm = RealmStore.sharedInstance
                 
-                NSOperationQueue.mainQueue().addOperationWithBlock({
-                    // JSONで取得したユーザ一覧をRealmへ登録
-                    let realm = RealmStore.sharedInstance
-                    try! realm.write({ () -> Void in
-                        realm.create(User.self, value: ["id": id, "name": name, "age": age], update: true)
+                // JSONで取得したユーザ一覧をRealmへ登録
+                let users = Mapper<User>().mapArray(String(data: data!, encoding: NSUTF8StringEncoding))
+                if let users = users {
+                    try! realm.write({
+                        realm.add(users, update: true)
                     })
-                    
-                    // Realmへ登録したユーザ一覧をobjectsへセット
-                    self.objects = realm.objects(User).map({ $0 })
-                    
-                    self.tableView.reloadData()
-                })
-            }
+                }
+                
+                // Realmへ登録したユーザ一覧をobjectsへセット
+                self.objects = realm.objects(User).map({ $0 })
+                
+                self.tableView.reloadData()
+            })
         }
         task.resume()
     }

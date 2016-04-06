@@ -7,13 +7,25 @@
 //
 
 import RealmSwift
+import ObjectMapper
 
-class User: Object {
+class User: Object, Mappable {
     dynamic var id = 0
     dynamic var name = ""
     dynamic var age = 0
     
     override static func primaryKey() -> String? {
         return "id"
+    }
+    
+    required convenience init?(_ map: Map){
+        self.init()
+    }
+    
+    func mapping(map: Map)
+    {
+        age <- map["age"]
+        id <- map["id"]
+        name <- map["name"]
     }
 }
