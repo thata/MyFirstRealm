@@ -7,11 +7,12 @@
 //
 
 import UIKit
+import RealmSwift
 
 class MasterViewController: UITableViewController {
 
     var detailViewController: DetailViewController? = nil
-    var objects = [AnyObject]()
+    var objects = [User]()
 
 
     override func viewDidLoad() {
@@ -25,8 +26,11 @@ class MasterViewController: UITableViewController {
             let controllers = split.viewControllers
             self.detailViewController = (controllers[controllers.count-1] as! UINavigationController).topViewController as? DetailViewController
         }
+        
+        // ユーザをロード
+        loadUsers()
     }
-
+    
     override func viewWillAppear(animated: Bool) {
         self.clearsSelectionOnViewWillAppear = self.splitViewController!.collapsed
         super.viewWillAppear(animated)
@@ -38,9 +42,18 @@ class MasterViewController: UITableViewController {
     }
 
     func insertNewObject(sender: AnyObject) {
-        objects.insert(NSDate(), atIndex: 0)
-        let indexPath = NSIndexPath(forRow: 0, inSection: 0)
-        self.tableView.insertRowsAtIndexPaths([indexPath], withRowAnimation: .Automatic)
+        // 適当なユーザを1件追加
+        let url: NSURL = NSURL(string: "https://sample-json.herokuapp.com/users.json")!
+        let request = NSMutableURLRequest(URL: url)
+        request.HTTPMethod = "POST"
+        request.HTTPBody = "user[name]=thata&user[age]=20".dataUsingEncoding(NSUTF8StringEncoding)
+        let session = NSURLSession.sharedSession()
+        let task = session.dataTaskWithRequest(request) { (data, response, error) -> Void in
+            NSOperationQueue.mainQueue().addOperationWithBlock({
+                self.loadUsers()
+            })
+        }
+        task.resume()
     }
 
     // MARK: - Segues
@@ -48,7 +61,7 @@ class MasterViewController: UITableViewController {
     override func prepareForSegue(segue: UIStoryboardSegue, sender: AnyObject?) {
         if segue.identifier == "showDetail" {
             if let indexPath = self.tableView.indexPathForSelectedRow {
-                let object = objects[indexPath.row] as! NSDate
+                let object = objects[indexPath.row]
                 let controller = (segue.destinationViewController as! UINavigationController).topViewController as! DetailViewController
                 controller.detailItem = object
                 controller.navigationItem.leftBarButtonItem = self.splitViewController?.displayModeButtonItem()
@@ -70,8 +83,8 @@ class MasterViewController: UITableViewController {
     override func tableView(tableView: UITableView, cellForRowAtIndexPath indexPath: NSIndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCellWithIdentifier("Cell", forIndexPath: indexPath)
 
-        let object = objects[indexPath.row] as! NSDate
-        cell.textLabel!.text = object.description
+        let object = objects[indexPath.row]
+        cell.textLabel!.text = String(format: "%@", object.name)
         return cell
     }
 
@@ -89,6 +102,37 @@ class MasterViewController: UITableViewController {
         }
     }
 
-
+    
+    func loadUsers() {
+        // ユーザ一覧をJSON形式で取得
+        let url: NSURL = NSURL(string: "https://sample-json.herokuapp.com/users.json")!
+        let request = NSMutableURLRequest(URL: url)
+        let session = NSURLSession.sharedSession()
+        let task = session.dataTaskWithRequest(request) { (data, response, error) -> Void in
+            
+            let users: NSArray = try! NSJSONSerialization.JSONObjectWithData(data!, options: NSJSONReadingOptions.MutableLeaves) as! NSArray
+            
+            for user in users {
+                let user = user as! NSDictionary
+                let id: Int = user["id"] as! Int
+                let name: String = user["name"] as! String
+                let age: Int = user["age"] as! Int
+                
+                NSOperationQueue.mainQueue().addOperationWithBlock({
+                    // JSONで取得したユーザ一覧をRealmへ登録
+                    let realm = RealmStore.sharedInstance
+                    try! realm.write({ () -> Void in
+                        realm.create(User.self, value: ["id": id, "name": name, "age": age], update: true)
+                    })
+                    
+                    // Realmへ登録したユーザ一覧をobjectsへセット
+                    self.objects = realm.objects(User).map({ $0 })
+                    
+                    self.tableView.reloadData()
+                })
+            }
+        }
+        task.resume()
+    }
 }
 
