@@ -5,5 +5,6 @@ use_frameworks!
 
 target 'MyFirstRealm' do
   pod 'RealmSwift'
+  pod 'ObjectMapper', '~> 1.2'
 end
 

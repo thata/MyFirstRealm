@@ -84,10 +84,12 @@ strip_invalid_archs() {
 
 
 if [[ "$CONFIGURATION" == "Debug" ]]; then
+  install_framework "Pods-MyFirstRealm/ObjectMapper.framework"
   install_framework "Pods-MyFirstRealm/Realm.framework"
   install_framework "Pods-MyFirstRealm/RealmSwift.framework"
 fi
 if [[ "$CONFIGURATION" == "Release" ]]; then
+  install_framework "Pods-MyFirstRealm/ObjectMapper.framework"
   install_framework "Pods-MyFirstRealm/Realm.framework"
   install_framework "Pods-MyFirstRealm/RealmSwift.framework"
 fi
