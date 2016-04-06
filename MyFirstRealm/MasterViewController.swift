@@ -45,17 +45,13 @@ class MasterViewController: UITableViewController {
 
     func insertNewObject(sender: AnyObject) {
         // 適当なユーザを1件追加
-        let url: NSURL = NSURL(string: "https://sample-json.herokuapp.com/users.json")!
-        let request = NSMutableURLRequest(URL: url)
-        request.HTTPMethod = "POST"
-        request.HTTPBody = "user[name]=thata&user[age]=20".dataUsingEncoding(NSUTF8StringEncoding)
-        let session = NSURLSession.sharedSession()
-        let task = session.dataTaskWithRequest(request) { (data, response, error) -> Void in
+        let params = ["user[name]": "thata", "user[age]": "20"]
+        Alamofire.request(.POST, "https://sample-json.herokuapp.com/users.json", parameters: params).responseJSON { response in
+            // xxx エラーチェックしてない
             NSOperationQueue.mainQueue().addOperationWithBlock({
                 self.loadUsers()
             })
         }
-        task.resume()
     }
 
     // MARK: - Segues
