@@ -9,6 +9,7 @@
 import UIKit
 import RealmSwift
 import ObjectMapper
+import Alamofire
 
 class MasterViewController: UITableViewController {
 
@@ -106,29 +107,26 @@ class MasterViewController: UITableViewController {
     
     func loadUsers() {
         // ユーザ一覧をJSON形式で取得
-        let url: NSURL = NSURL(string: "https://sample-json.herokuapp.com/users.json")!
-        let request = NSMutableURLRequest(URL: url)
-        let session = NSURLSession.sharedSession()
-        let task = session.dataTaskWithRequest(request) { (data, response, error) -> Void in
-            
-            NSOperationQueue.mainQueue().addOperationWithBlock({
-                let realm = RealmStore.sharedInstance
-                
-                // JSONで取得したユーザ一覧をRealmへ登録
-                let users = Mapper<User>().mapArray(String(data: data!, encoding: NSUTF8StringEncoding))
-                if let users = users {
-                    try! realm.write({
-                        realm.add(users, update: true)
-                    })
-                }
-                
-                // Realmへ登録したユーザ一覧をobjectsへセット
-                self.objects = realm.objects(User).map({ $0 })
-                
-                self.tableView.reloadData()
-            })
+        Alamofire.request(.GET, "https://sample-json.herokuapp.com/users.json").responseJSON { response in
+            if let json = response.result.value {
+                NSOperationQueue.mainQueue().addOperationWithBlock({
+                    let realm = RealmStore.sharedInstance
+
+                    // JSONで取得したユーザ一覧をRealmへ登録
+                    let users = Mapper<User>().mapArray(json)
+                    if let users = users {
+                        try! realm.write({
+                            realm.add(users, update: true)
+                        })
+                    }
+
+                    // Realmへ登録したユーザ一覧をobjectsへセット
+                    self.objects = realm.objects(User).map({ $0 })
+                    
+                    self.tableView.reloadData()
+                })
+            }
         }
-        task.resume()
     }
 }
 
